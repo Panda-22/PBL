@@ -22,7 +22,7 @@ st.sidebar.subheader('Select year, country, gender, age:')
 start_time = st.sidebar.slider('1 - Select year:', 
                     data['year'].min(),
                     data['year'].max(),
-                    data['year'].max())
+                    1990)
 year_data = data.loc[data['year'] == start_time]
 country_lst = ['All countries'] + list(data['country'].unique())
 country  = st.sidebar.selectbox('2 - Select country', (country_lst), key = "country")
@@ -119,32 +119,87 @@ st.altair_chart(chart)
 age_lst = ['All ages', '5-14 years', '15-24 years', '25-34 years','35-54 years', '55-74 years', '75+ years']
 age  = st.sidebar.selectbox('4 - Select age:', (age_lst), key = 'age')
 age_data_sum = country_data.groupby(['year', 'age'], as_index=False).agg({'suicides/100k pop':'sum'})
+age_gender_sum = country_data.groupby(['year', 'age','sex'], as_index=False).agg({'suicides/100k pop':'sum'})
 
-if age == 'All ages':
+if gender == 'All genders' and age == 'All ages':
     country_data_age = age_data_sum
-else:
-    country_data_age = age_data_sum[age_data_sum['age'] == age]    
-
-stack_chart = alt.Chart(country_data_age).mark_area().encode(
-    x="year:N",
-    y="suicides/100k pop:Q",
-    color = 'age:N',
-    tooltip = ['age:N', 'suicides/100k pop:Q']
-    ).properties(height=300, width=700, title = 'Suicide stats by age in %s:' %(country)
-    ).interactive()
-
+    stack_chart = alt.Chart(country_data_age).mark_area().encode(
+        x="year:N",
+        y="suicides/100k pop:Q",
+        color = 'age:N',
+        tooltip = ['age:N', 'suicides/100k pop:Q']
+        ).properties(height=300, width=700, title = 'Suicide stats by age in %s:' %(country)
+        ).interactive()
+    dotplot = alt.Chart(country_data_age).mark_circle().encode(
+        x="year:N",
+        y="suicides/100k pop:Q",
+        color = 'age:N',
+        tooltip = ['age:N', 'suicides/100k pop:Q']
+        ).properties(height=300, width=700, title = 'Suicide stats by age in %s:' %(country)
+        ).interactive()
+elif gender =='All genders' and age == age:
+    age_sum = age_gender_sum[age_gender_sum['age']==age]
+    country_data_gender = age_sum.groupby(['year','sex'], as_index=False).agg({'suicides/100k pop':'sum'})
+    stack_chart = alt.Chart(country_data_gender).mark_area().encode(
+        x="year:N",
+        y="suicides/100k pop:Q",
+        color = 'sex:N',
+        tooltip = ['sex:N', 'suicides/100k pop:Q']
+        ).properties(height=300, width=700, title = 'Suicide stats by age in %s:' %(country)
+        ).interactive()
+    dotplot = alt.Chart(country_data_gender).mark_circle().encode(
+        x="year:N",
+        y="suicides/100k pop:Q",
+        color = 'sex:N',
+        tooltip = ['sex:N', 'suicides/100k pop:Q']
+        ).properties(height=300, width=700, title = 'Suicide stats by age in %s:' %(country)
+        ).interactive()
+elif gender == gender and age == 'All ages':
+    gender_sum = age_gender_sum[age_gender_sum['sex']==gender]
+    country_data_age = gender_sum.groupby(['year','age'], as_index=False).agg({'suicides/100k pop':'sum'})
+    stack_chart = alt.Chart(country_data_age).mark_area().encode(
+        x="year:N",
+        y="suicides/100k pop:Q",
+        color = 'age:N',
+        tooltip = ['age:N', 'suicides/100k pop:Q']
+        ).properties(height=300, width=700, title = 'Suicide stats by age in %s:' %(country)
+        ).interactive()
+    dotplot = alt.Chart(country_data_age).mark_circle().encode(
+        x="year:N",
+        y="suicides/100k pop:Q",
+        color = 'age:N',
+        tooltip = ['age:N', 'suicides/100k pop:Q']
+        ).properties(height=300, width=700, title = 'Suicide stats by age in %s:' %(country)
+        ).interactive()
+elif gender != 'All genders' and age != 'All ages':
+    country_data_age = age_gender_sum.loc[(age_gender_sum['sex']==gender) &(age_gender_sum['age']==age)]
+    stack_chart = alt.Chart(country_data_age).mark_area().encode(
+        x="year:N",
+        y="suicides/100k pop:Q",
+        color = 'age:N',
+        tooltip = ['age:N', 'sex:N', 'suicides/100k pop:Q']
+        ).properties(height=300, width=700, title = 'Suicide stats by age in %s:' %(country)
+        ).interactive()
+    dotplot = alt.Chart(country_data_age).mark_circle().encode(
+        x="year:N",
+        y="suicides/100k pop:Q",
+        color = 'age:N',
+        tooltip = ['age:N', 'sex:N', 'suicides/100k pop:Q']
+        ).properties(height=300, width=700, title = 'Suicide stats by age in %s:' %(country)
+        ).interactive()
 st.altair_chart(stack_chart)
-
-
-dotplot = alt.Chart(country_data_age).mark_circle().encode(
-    x="year:N",
-    y="suicides/100k pop:Q",
-    color = 'age:N',
-    tooltip = ['age:N', 'suicides/100k pop:Q']
-).properties(height=300, width=700, title = 'Suicide stats by age in %s:' %(country)
-).interactive()
 st.altair_chart(dotplot, use_container_width=True) 
 
+#***** 4 - Radial Chart by Country*****
+source = year_data_country.loc[year_data_country['suicides/100k pop'] > 250]
+base = alt.Chart(source).encode(
+    alt.Theta("suicides/100k pop:Q").stack(True),
+    alt.Radius("suicides/100k pop").scale(type="sqrt", zero=True, rangeMin=20),
+    color="country:N",
+    tooltip = ['country:N',  'suicides/100k pop:Q']
+).properties(height=420, width=600, title = 'Suicides per 100k population: Top countries')
 
-
+c1 = base.mark_arc(innerRadius=20, stroke="#fff")
+c2 = base.mark_text(radiusOffset=10).encode(text="country:N")
+st.altair_chart(c1 + c2)
 
